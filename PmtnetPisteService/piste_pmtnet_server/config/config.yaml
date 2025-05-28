@@ -1,0 +1,23 @@
+LOGGER:
+    log_level: "DEBUG"
+    log_path: "../logs/log.txt"
+
+TOOL:
+  COMMON:
+    output_download_url_prefix: "https://mollyseek.com/downloads/"
+  PISTE:
+    piste_env_python_dir: "/usr/bin/python"
+    input_tmp_piste_dir: "/opt/tmp/piste/input"
+    output_tmp_piste_dir: "/opt/tmp/piste/output"
+  PMTNET:
+    pMTnet_env_python_dir: "/usr/bin/python"
+    pMTnet_script_dir: "/opt/softwares/pMTnet/pMTnet.py"
+    library_dir: "/opt/softwares/pMTnet/library"
+    input_tmp_pmtnet_dir: "/opt/tmp/pMtNet/input"
+    output_tmp_pmtnet_dir: "/opt/tmp/pmtnet/output"         
+
+MINIO:
+  endpoint: "52.74.25.27:18080"
+  pmtnet_bucket: "pmtnet-results"
+  piste_bucket: "piste-results"
+  secure: false

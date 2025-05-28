@@ -1,0 +1,14 @@
+uvicorn == 0.34.2
+fastapi == 0.115.12
+pydantic == 2.11.3
+tensorflow==2.19.0
+torch==2.6.0
+numpy==1.26.4
+pandas==2.2.3
+matplotlib==3.10.1
+scikit-learn==1.6.1
+dotenv==0.9.9
+minio==7.2.15
+PyYAML==6.0.2
+psutil==5.9.4
+openpyxl==3.1.5

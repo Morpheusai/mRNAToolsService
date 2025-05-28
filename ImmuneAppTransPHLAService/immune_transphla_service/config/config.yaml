@@ -1,0 +1,29 @@
+LOGGER:
+    log_level: "DEBUG"
+    log_path: "../logs/log.txt"
+
+TOOL:
+  COMMON:
+    output_download_url_prefix: "https://mollyseek.com/downloads/"
+  IMMUNEAPP:
+    script_path: /opt/softwares/ImmuneApp/ImmuneApp_presentation_prediction.py
+    python_bin: /usr/bin/python
+    input_tmp_dir: /opt/tmp/immuneapp/input  
+    output_tmp_dir: /opt/tmp/immuneapp/output
+  IMMUNEAPP_NEO:
+    script_path: /opt/softwares/ImmuneApp/ImmuneApp_immunogenicity_prediction.py
+    python_bin: /usr/bin/python
+    input_tmp_dir: /opt/tmp/immuneapp_neo/input  
+    output_tmp_dir: /opt/tmp/immuneapp_neo/output 
+  TRANSPHLA:
+    script_path: /opt/softwares/TransPHLA-AOMP/TransPHLA-AOMP/pHLAIformer.py
+    python_bin: /usr/bin/python
+    input_tmp_dir: /opy/tmp/transphla/input
+    output_tmp_dir: /opt/tmp/transphla/output
+
+MINIO:
+  endpoint: "52.74.25.27:18080"
+  immuneapp_bucket: "immuneapp-results"
+  immuneapp_neo_bucket: "immuneapp-neo-results"
+  transphla_bucket: "transphla-results"
+  secure: false

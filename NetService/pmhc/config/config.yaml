@@ -1,0 +1,51 @@
+LOGGER:
+    log_level: "DEBUG"
+    log_path: "../logs/log.txt"
+
+TOOL:
+  COMMON:
+    output_download_url_prefix: "https://mollyseek.com/downloads/"
+  NETCHOP:
+    netchop_dir: "/opt/softwares/netchop-3.1"
+    input_tmp_netchop_dir: "/opt/tmp/NetChop/input"
+    output_tmp_netchop_dir: "/opt/tmp/NetChop/output"
+  NETCTLPAN:
+    netctlpan_dir: "/opt/softwares/netCTLpan-1.1"
+    input_tmp_netctlpan_dir: "/opt/tmp/netctlpan/input"
+    output_tmp_netctlpan_dir: "/opt/tmp/netctlpan/output"
+  NETMHCPAN:   
+    netmhcpan_dir: "/opt/softwares/netMHCpan-4.1"
+    input_tmp_netmhcpan_dir: "/opt/tmp/NetMHCpan/input"
+    output_tmp_netmhcpan_dir: "/opt/tmp/NetMHCpan/output"
+  NETMHCSTABPAN:   
+    netmhcstabpan_dir: "/opt/softwares/netMHCstabpan-1.0"
+    input_tmp_netmhcstabpan_dir: "/opt/tmp/NetMHCstabpan/input"
+    output_tmp_netmhcstabpan_dir: "/opt/tmp/NetMHCstabpan/output"
+  NETTCR:
+    nettcr_dir: "/opt/softwares/netTCR-2.2"  
+    input_tmp_nettcr_dir: "/opt/tmp/NetTCR/input"
+    output_tmp_nettcr_dir: "/opt/tmp/NetTCR/output"    
+  BIGMHC:
+    bigmhc_dir: "/opt/softwares/bigmhc/src"  
+    input_tmp_bigmhc_dir: "/opt/tmp/BigMHC/input"
+    output_tmp_bigmhc_dir: "/opt/tmp/BigMHC/output"
+  PRIME:
+    input_tmp_prime_dir: "/opt/tmp/Prime/input"
+    output_tmp_prime_dir: "/opt/tmp/Prime/output"    
+  RNAPLOT:
+    input_tmp_dir: "/mnt/tmp/rnaplot/input" 
+    output_tmp_dir: "/mnt/tmp/rnaplot/output"    
+     
+
+
+MINIO:
+  endpoint: "52.74.25.27:18080"
+  netchop_bucket: "netchop-results"
+  netctlpan_bucket: "netctlpan-results"
+  netmhcpan_bucket: "netmhcpan-results"
+  netmhcstabpan_bucket: "netmhcstabpan-results"
+  nettcr_bucket: "nettcr-results"
+  bigmhc_bucket: "bigmhc-results"
+  prime_bucket: "prime-results"
+  rnaplot_bucket: "rnaplot-results"
+  secure: false
