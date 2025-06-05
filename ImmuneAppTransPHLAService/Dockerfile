@@ -17,6 +17,7 @@ RUN ln -sf /usr/bin/python3.7 /usr/bin/python && \
     ln -sf /usr/local/bin/pip /usr/bin/pip
 
 ADD ./immune_transphla_software_20250507.tar.gz /opt/
+ADD ./LinearDesign.tar.gz /mnt/softwares/
 
 COPY ./requirements.txt /opt/workspace/neotech/requirements.txt
 WORKDIR /opt/workspace/neotech

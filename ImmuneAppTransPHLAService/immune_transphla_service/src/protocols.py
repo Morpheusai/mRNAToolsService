@@ -17,3 +17,8 @@ class TransphlaRequest(BaseModel):
     threshold: Optional[float] = 0.5
     cut_length: Optional[int] = 10
     cut_peptide: Optional[bool] = True
+
+    
+class LinearDesign(BaseModel):
+    minio_input_fasta: str
+    lambda_val: Optional[float] = 0.5

@@ -1,10 +1,11 @@
 import json
 
-from src.protocols import ImmuneAppRequest, ImmuneNeoRequest, TransphlaRequest
+from src.protocols import ImmuneAppRequest, ImmuneNeoRequest, TransphlaRequest,LinearDesign
 
 from src.tools.ImmuneApp.immuneapp import run_ImmuneApp
 from src.tools.ImmuneAppNeo.immuneapp_neo import run_ImmuneApp_Neo
 from src.tools.TransPHLA.transphla import run_TransPHLA
+from src.tools.LinearDesign.lineardesign import run_lineardesign
 
 async def immuneapp(request: ImmuneAppRequest) -> str:
     """
@@ -99,4 +100,29 @@ async def transphla(request: TransphlaRequest) -> str:
             "content": f"调用TransPHLA工具失败: {e}"
         }
         return json.dumps(result, ensure_ascii=False)
+    
 
+async def lineardesign(request: LinearDesign) -> str:
+    """
+    使用 LinearDesign 工具对给定的肽段或 FASTA 文件进行 mRNA 序列优化。
+
+    参数：
+        minio_input_fasta: MinIO 中的输入文件路径（例如 minio://bucket/input.fasta）
+        lambda_val: lambda 参数控制表达/结构平衡，默认 0.5
+
+    返回：
+        包含 MinIO 链接的 JSON 字符串
+    """
+    minio_input_fasta = request.minio_input_fasta
+    lambda_val = request.lambda_val
+    try:
+        return await run_lineardesign(
+            minio_input_fasta,
+            lambda_val,
+        )
+    except Exception as e:
+        result = {
+            "type": "text",
+            "content": f"调用LinearDesign工具失败: {e}"
+        }
+        return json.dumps(result, ensure_ascii=False)

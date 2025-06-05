@@ -7,7 +7,9 @@ from src.protocols import (
     NetMHCStabPanRequest, 
     NetTCRRequest,
     BigMHCRequest,
-    PrimeRequest
+    PrimeRequest,
+    RNAPlotRequest,
+    RNAFoldRequest
 )
 
 from src.tools.NetChop.netchop import run_netchop
@@ -18,6 +20,7 @@ from src.tools.NetTCR.nettcr import run_nettcr
 from src.tools.BigMHC.bigmhc import run_bigmhc
 from src.tools.Prime.prime import run_prime
 from src.tools.RNAPlot.rnaplot import run_rnaplot
+from pmhc.src.tools.RNAFold.rnafold import run_rnafold
 
 async def netchop(request: NetChopRequest) -> str:
     """                                    
@@ -214,7 +217,7 @@ async def prime(request: PrimeRequest) -> str:
         }
         return json.dumps(result, ensure_ascii=False)
     
-async def rnaPlot(request: PrimeRequest) -> str:
+async def rnaPlot(request: RNAPlotRequest) -> str:
     """                                    
     RNAPlot是用来绘制 RNA 的二级结构图。
     Args:                                  
@@ -234,3 +237,26 @@ async def rnaPlot(request: PrimeRequest) -> str:
             "content": f"调用RNAPlot工具失败: {e}"
         }
         return json.dumps(result, ensure_ascii=False)    
+    
+async def rnaFold(request: RNAFoldRequest) -> str:
+    """                                    
+    RNAFold是预测其最小自由能（MFE）二级结构，输出括号表示法和自由能值。
+    Args:                                  
+        input_file (str): 输入的肽段序例fasta文件路径           
+    Returns:                               
+        str: 返回输出括号表示法和自由能值字符串。                                                                                                                          
+    """
+    input_file = request.input_file
+    try:
+        return await run_rnafold(
+            input_file
+        )
+
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        result = {
+            "type": "text",
+            "content": f"调用RNAFold工具失败: {error_trace}"
+        }
+        return json.dumps(result, ensure_ascii=False)

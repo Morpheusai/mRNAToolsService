@@ -20,10 +20,17 @@ TOOL:
     python_bin: /usr/bin/python
     input_tmp_dir: /opy/tmp/transphla/input
     output_tmp_dir: /opt/tmp/transphla/output
+  LINEARDESIGN:
+    script: "/mnt/softwares/LinearDesign/linear_design.py"
+    input_tmp_dir: "/opt/tmp/LinearDesign/input"
+    output_tmp_dir: "/opt/tmp/LinearDesign/output"
+
 
 MINIO:
   endpoint: "52.74.25.27:18080"
+  molly_bucket: "molly"
   immuneapp_bucket: "immuneapp-results"
   immuneapp_neo_bucket: "immuneapp-neo-results"
   transphla_bucket: "transphla-results"
+  lineardesign_bucket: "lineardesign-results"
   secure: false

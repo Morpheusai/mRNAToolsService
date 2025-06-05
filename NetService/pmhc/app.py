@@ -9,7 +9,8 @@ from src.api import (
     netTCR,
     bigMHC,
     prime,
-    rnaPlot
+    rnaPlot,
+    rnaFold
 )
 
 app = FastAPI()
@@ -38,3 +39,4 @@ app.post("/nettcr",tags=["NetTCRTool"],summary="NetTCRTool")(netTCR)
 app.post("/bigmhc",tags=["BigMHCTool"],summary="BigMHCTool")(bigMHC)
 app.post("/prime",tags=["PrimeTool"],summary="PrimeTool")(prime)
 app.post("/rnaplot",tags=["RNAPlotTool"],summary="RNAPlotTool")(rnaPlot)
+app.post("/rnafold",tags=["RNAFoldTool"],summary="RNAFoldTool")(rnaFold)

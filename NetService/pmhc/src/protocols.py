@@ -36,3 +36,9 @@ class BigMHCRequest(BaseModel):
 class PrimeRequest(BaseModel):
     input_file: str    
     mhc_allele: Optional[str] = "B1801"   
+    
+class RNAPlotRequest(BaseModel):
+    input_file: str    
+
+class RNAFoldRequest(BaseModel):
+    input_file: str      

@@ -1,7 +1,7 @@
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api import immuneapp, immuneappneo, transphla
+from src.api import immuneapp, immuneappneo, transphla, lineardesign
 
 app = FastAPI()
 
@@ -24,3 +24,4 @@ def read_root():
 app.post("/ImmuneApp",tags=["ImmuneApp_presentation"],summary="ImmuneAppTool")(immuneapp)
 app.post("/ImmuneApp_Neo",tags=["ImmuneApp_immunogenicity"],summary="ImmuneAppNeoTool")(immuneappneo)
 app.post("/TransPHLA_AOMP",tags=["TransPHLA_AOMP"],summary="TransPHLATool")(transphla)
+app.post("/LinearDesign",tags=["LinearDesign"],summary="LinearDesignTool")(lineardesign)

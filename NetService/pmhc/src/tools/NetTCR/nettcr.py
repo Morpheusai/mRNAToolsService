@@ -162,7 +162,6 @@ async def run_nettcr(
         "-o", str(output_tmp_path),  # 添加 输出参数
         "-a", "10",  # 添加 -a 参数
     ]
-    print(" ".join(cmd))
     # 启动异步进程
     proc = await asyncio.create_subprocess_exec(
         *cmd,

@@ -35,7 +35,10 @@ TOOL:
   RNAPLOT:
     input_tmp_dir: "/mnt/tmp/rnaplot/input" 
     output_tmp_dir: "/mnt/tmp/rnaplot/output"    
-     
+  RNAFOLD:
+    input_tmp_dir: "/mnt/tmp/rnafold/input" 
+    output_tmp_dir: "/mnt/tmp/rnafold/output"     
+
 
 
 MINIO:
@@ -48,4 +51,5 @@ MINIO:
   bigmhc_bucket: "bigmhc-results"
   prime_bucket: "prime-results"
   rnaplot_bucket: "rnaplot-results"
+  rnafold_bucket: "rnafold-results"
   secure: false
