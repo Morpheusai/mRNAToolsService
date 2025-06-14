@@ -1,0 +1,26 @@
+LOGGER:
+    log_level: "DEBUG"
+    log_path: "../logs/log.txt"
+
+TOOL:
+  COMMON:
+    output_download_url_prefix: "https://mollyseek.com/downloads/"     
+  UNIPMT:
+    script_path: "/mnt/softwares/UniPMT/code/main.py"
+    python_bin: "/usr/bin/python"
+    input_tmp_dir: "/mnt/tmp/UniPMT/input"
+    output_tmp_dir: "/mnt/tmp/UniPMT/output"
+    nodes_peptides_csv: "/mnt/softwares/UniPMT/data/pmt_pmt/nodes_peptides.csv"
+    nodes_mhc_csv: "/mnt/softwares/UniPMT/data/pmt_pmt/nodes_mhc.csv"
+    nodes_tcr_csv: "/mnt/softwares/UniPMT/data/pmt_pmt/nodes_tcr.csv"
+    p_features_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta/p_features.npy"
+    t_features_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta/t_features.npy"
+    m_features_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta/m_features.npy"
+    unipmt_input_file_path: "/mnt/softwares/UniPMT/data/pmt_pmt/meta"
+
+
+MINIO:
+  endpoint: "52.74.25.27:18080"
+  molly_bucket: "molly"
+  unipmt_bucket: "unipmt-results"
+  secure: false
