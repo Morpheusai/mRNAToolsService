@@ -214,7 +214,7 @@ def NetCTLpan(input_file: str, mhc_allele: str = "HLA-A02:01", weight_of_clevage
         # 捕获并返回异常信息
         result = {
             "type": "text",
-            "content": f"调用NetMHCpan工具失败: {str(e)}"
+            "content": f"调用NetCTLpan工具失败: {str(e)}"
         }
         return json.dumps(result, ensure_ascii=False)
 

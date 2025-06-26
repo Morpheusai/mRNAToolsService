@@ -42,7 +42,7 @@ TOOL:
 
 
 MINIO:
-  endpoint: "52.74.25.27:18080"
+  endpoint: "47.237.170.62:18080"
   netchop_bucket: "netchop-results"
   netctlpan_bucket: "netctlpan-results"
   netmhcpan_bucket: "netmhcpan-results"
