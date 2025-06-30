@@ -54,21 +54,23 @@ def check_minio_connection(bucket_name=MINIO_BUCKET):
 
 
 async def run_netmhcpan(
-    input_file: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
-    mhc_allele: str = "HLA-A02:01",  # MHC 等位基因类型
-    high_threshold_of_bp: float = 0.5,  # 相对阈值上限
-    low_threshold_of_bp: float = 2.0,  # 相对阈值下限
-    peptide_length: str = "8,9,10,11",  # 肽段长度，逗号分隔
+    input_filename: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
+    mhc_allele: str = "HLA-A02:01",  # HLA 等位基因（MHC 分子类型）
+    peptide_length: int = -1,  # 肽段长度，范围8-11，-1表示使用默认值
+    high_threshold_of_bp: float = 0.5,  # 高结合力肽段的阈值
+    low_threshold_of_bp: float = 2.0,  # 低结合力肽段的阈值
+    rank_cutoff: float = -99.9,  # 输出结果的%Rank截断值
     netmhcpan_dir: str = NETMHCPAN_DIR
     ) -> str:
 
     """
     异步运行 netMHCpan 并将处理后的结果上传到 MinIO
-    :param input_file: MinIO 文件路径，格式为 "bucket-name/file-path"
-    :param mhc_allele: MHC 等位基因类型
-    :param high_threshold_of_bp: 相对阈值上限
-    :param low_threshold_of_bp: 相对阈值下限
-    :param peptide_length: 肽段长度，逗号分隔（如 "8,9"）
+    :param input_filename: MinIO 文件路径，格式为 "bucket-name/file-path"
+    :param mhc_allele: HLA 等位基因（MHC 分子类型），默认值HLA-A02:01
+    :param peptide_length: 肽段长度，范围8-11，-1表示使用默认值，默认值-1
+    :param high_threshold_of_bp: 高结合力肽段的阈值，默认值0.5
+    :param low_threshold_of_bp: 低结合力肽段的阈值，默认值2.0
+    :param rank_cutoff: 输出结果的%Rank截断值，默认值-99.9
     :param netmhcpan_dir: netMHCpan 安装目录
     :return: JSON 字符串，包含 MinIO 文件路径（或下载链接）
     """
@@ -77,7 +79,7 @@ async def run_netmhcpan(
     #提取桶名和文件
     try:
         # 去掉 minio:// 前缀
-        path_without_prefix = input_file[len("minio://"):]
+        path_without_prefix = input_filename[len("minio://"):]
         
         # 找到第一个斜杠的位置，用于分割 bucket_name 和 object_name
         first_slash_index = path_without_prefix.find("/")
@@ -129,12 +131,20 @@ async def run_netmhcpan(
     cmd = [
         f"{netmhcpan_dir}/netMHCpan",
         "-BA",
-        "-rth", str(high_threshold_of_bp),  # 添加 -rth 参数
-        "-rlt", str(low_threshold_of_bp),  # 添加 -rlt 参数
-        "-l", peptide_length,  # 添加 -l 参数
-        "-a", mhc_allele,  # 添加 -a 参数
+        "-a", mhc_allele,  # HLA 等位基因
+        "-rth", str(high_threshold_of_bp),  # 高结合力肽段阈值
+        "-rlt", str(low_threshold_of_bp),  # 低结合力肽段阈值
+        "-t", str(rank_cutoff),  # 输出结果%Rank截断值
         str(input_path)  # 输入文件路径
     ]
+    
+    # 只有当peptide_length不为-1时才添加-l参数
+    if peptide_length != -1:
+        cmd.insert(-1, "-l")  # 在输入文件路径前插入-l
+        cmd.insert(-1, str(peptide_length))  # 在-l后插入peptide_length值
+
+    # 过滤掉空字符串
+    cmd = [arg for arg in cmd if arg]
 
     # 启动异步进程
     proc = await asyncio.create_subprocess_exec(
@@ -203,21 +213,28 @@ async def run_netmhcpan(
     return json.dumps(result, ensure_ascii=False)
 
 
-async def NetMHCpan(input_file: str,mhc_allele: str = "HLA-A02:01",high_threshold_of_bp: float = 0.5,low_threshold_of_bp: float = 2.0,peptide_length: str = "8,9,10,11",) -> str:
-    """                                    
+async def NetMHCpan(
+    input_filename: str,
+    mhc_allele: str = "HLA-A02:01",
+    peptide_length: int = -1,
+    high_threshold_of_bp: float = 0.5,
+    low_threshold_of_bp: float = 2.0,
+    rank_cutoff: float = -99.9
+) -> str:
+    """
     NetMHCpan用于预测肽段序列和给定MHC分子的结合能力，可高效筛选高亲和力、稳定呈递的候选肽段，用于mRNA 疫苗及个性化免疫治疗。
-    Args:                                  
-        input_file (str): 输入的肽段序例fasta文件路径 
-        mhc_allele (str): MHC比对的等位基因
-        peptide_length (str): 预测时所使用的肽段长度            
-        high_threshold_of_bp (float): 肽段和MHC分子高结合能力的阈值
-        low_threshold_of_bp (float): 肽段和MHC分子弱结合能力的阈值
-    Returns:                               
-        str: 返回高结合亲和力的肽段序例信息                                                                                                                           
+    Args:
+        input_filename (str): 输入的肽段序例fasta文件路径
+        mhc_allele (str): HLA 等位基因（MHC 分子类型），默认值HLA-A02:01
+        peptide_length (int): 肽段长度，范围8-11，-1表示使用默认值，默认值-1
+        high_threshold_of_bp (float): 高结合力肽段的阈值，默认值0.5
+        low_threshold_of_bp (float): 低结合力肽段的阈值，默认值2.0
+        rank_cutoff (float): 输出结果的%Rank截断值，默认值-99.9
+    Returns:
+        str: 返回高结合亲和力的肽段序例信息
     """
     try:
-        return await run_netmhcpan(input_file,mhc_allele,high_threshold_of_bp,low_threshold_of_bp,peptide_length)
-
+        return await run_netmhcpan(input_filename, mhc_allele, peptide_length, high_threshold_of_bp, low_threshold_of_bp, rank_cutoff)
     except Exception as e:
         result = {
             "type": "text",

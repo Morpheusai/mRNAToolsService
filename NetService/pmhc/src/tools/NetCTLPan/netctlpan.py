@@ -50,20 +50,26 @@ def check_minio_connection(bucket_name=MINIO_BUCKET):
 
 
 async def run_netctlpan(
-    input_file: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
-    mhc_allele: str = "HLA-A02:01",  # MHC 等位基因类型
-    weight_of_clevage: float = 0.225,  # 相对阈值上限
-    weight_of_tap: float = 0.025,  # 相对阈值下限
-    peptide_length: str = "8,9,10,11",  # 肽段长度，默认是9
+    input_filename: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
+    mhc_allele: str = "HLA-A02:01",  # HLA 等位基因类型
+    peptide_length: int = -1,  # 肽段长度，范围8-11，-1表示不加-l参数
+    weight_of_tap: float = 0.025,  # TAP 权重
+    weight_of_clevage: float = 0.225,  # Clevage 权重
+    epi_threshold: float = 1.0,  # 表位阈值
+    output_threshold: float = -99.9,  # 输出得分阈值
+    sort_by: int = -1,  # 排序方式
     netctlpan_dir: str = NETCTLPAN_DIR
 ) -> str:
     """
     异步运行 netCTLpan 并返回结果
-    :param input_file: MinIO 文件路径，格式为 "bucket-name/file-path"
+    :param input_filename: MinIO 文件路径，格式为 "bucket-name/file-path"
     :param mhc_allele: MHC 等位基因类型
+    :param peptide_length: 肽段长度，范围8-11，-1表示不加-l参数
     :param weight_of_tap: TAP 的权重
     :param weight_of_clevage: Clevage 的权重
-    :param peptide_length: 肽段长度
+    :param epi_threshold: 表位阈值
+    :param output_threshold: 输出得分阈值
+    :param sort_by: 排序方式
     :param netctlpan_dir: netCTLpan 安装目录
     :return: 处理结果字符串
     """
@@ -71,10 +77,7 @@ async def run_netctlpan(
     minio_available = check_minio_connection()
     # 提取桶名和文件
     try:
-        # 去掉 minio:// 前缀
-        path_without_prefix = input_file[len("minio://"):]
-
-        # 找到第一个斜杠的位置，用于分割 bucket_name 和 object_name
+        path_without_prefix = input_filename[len("minio://"):]
         first_slash_index = path_without_prefix.find("/")
 
         if first_slash_index == -1:
@@ -120,17 +123,19 @@ async def run_netctlpan(
     # 构建输出文件名和临时路径
     output_filename = f"{random_id}_NetCTLpan_results.xlsx"
     output_path = output_dir / output_filename
-
     # 构建命令
     cmd = [
         f"{netctlpan_dir}/netCTLpan",
+        "-f", str(input_path),
+        "-a", mhc_allele,
         "-wt", str(weight_of_tap),
         "-wc", str(weight_of_clevage),
-        "-l", peptide_length,
-        "-a", mhc_allele,
-        str(input_path)
+        "-ethr", str(epi_threshold),
+        "-thr", str(output_threshold),
+        "-s", str(sort_by)
     ]
-
+    if peptide_length != -1:
+        cmd.extend(["-l", str(peptide_length)])
     # 启动异步进程
     proc = await asyncio.create_subprocess_exec(
         *cmd,
@@ -184,32 +189,38 @@ async def run_netctlpan(
         result = {
             "type": "link",
             "url": file_path,
-            "content": filtered_content  # 替换为生成的 Markdown 内容
+            "content": filtered_content
         }
-
     return json.dumps(result, ensure_ascii=False)
 
-def NetCTLpan(input_file: str, mhc_allele: str = "HLA-A02:01", weight_of_clevage: float = 0.225,
-              weight_of_tap: float = 0.025, peptide_length: str = "8,9,10,11") -> str:
+def NetCTLpan(
+    input_filename: str,
+    mhc_allele: str = "HLA-A02:01",
+    peptide_length: int = -1,
+    weight_of_tap: float = 0.025,
+    weight_of_clevage: float = 0.225,
+    epi_threshold: float = 1.0,
+    output_threshold: float = -99.9,
+    sort_by: int = -1
+) -> str:
     """
     使用NetCTLpan工具预测肽段序列与指定MHC分子的结合亲和力，用于筛选潜在的免疫原性肽段。
     该函数结合蛋白质裂解、TAP转运和MHC结合的预测，适用于疫苗设计和免疫研究。
-
-    :param input_file: 输入的FASTA格式肽段序列文件路径
+    :param input_filename: 输入的FASTA格式肽段序列文件路径
     :param mhc_allele: 用于比对的MHC等位基因名称，默认为"HLA-A02:01"
-    :param weight_of_clevage: 蛋白质裂解预测的权重，默认为0.225
+    :param peptide_length: 预测的肽段长度，-1表示不加-l参数，默认9
     :param weight_of_tap: TAP转运效率预测的权重，默认为0.025
-    :param peptide_length: 预测的肽段长度范围，默认为"9"
+    :param weight_of_clevage: 蛋白质裂解预测的权重，默认为0.225
+    :param epi_threshold: 表位阈值，默认1.0
+    :param output_threshold: 输出得分阈值，默认-99.9
+    :param sort_by: 排序方式，默认-1
     :return: 返回预测结果字符串，包含高亲和力肽段信息
     """
     try:
         # 调用异步函数并获取返回结果
         result = asyncio.run(run_netctlpan(
-            input_file, mhc_allele, weight_of_clevage, weight_of_tap, peptide_length))
-
-        # 可以根据需要在这里对结果进行更多处理
+            input_filename, mhc_allele, peptide_length, weight_of_tap, weight_of_clevage, epi_threshold, output_threshold, sort_by))
         return result
-
     except Exception as e:
         # 捕获并返回异常信息
         result = {
@@ -221,4 +232,4 @@ def NetCTLpan(input_file: str, mhc_allele: str = "HLA-A02:01", weight_of_clevage
 
 if __name__ == "__main__":
     print(asyncio.run(run_netctlpan(
-        input_file="minio://molly/2ad83c64-0440-4d70-80bf-8a0054c0ecac_B0702.fsa", peptide_length="9")))
+        input_filename="minio://molly/2ad83c64-0440-4d70-80bf-8a0054c0ecac_B0702.fsa", peptide_length=9)))

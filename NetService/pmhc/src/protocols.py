@@ -2,22 +2,29 @@ from typing import Optional
 from pydantic  import BaseModel
 
 class NetChopRequest(BaseModel):
-    input_file: str
+    input_filename: str
     cleavage_site_threshold: Optional[float] = 0.5
+    model: Optional[int] = 0
+    format: Optional[int] = 0
+    strict: Optional[int] = 0
 
 class NetCTLPanRequest(BaseModel):
-    input_file: str
+    input_filename: str
     mhc_allele: Optional[str] = "HLA-A02:01"
-    weight_of_clevage: Optional[float] = 0.225
+    peptide_length: Optional[int] = -1
     weight_of_tap: Optional[float] = 0.025
-    peptide_length: Optional[str] = "8,9,10,11"
+    weight_of_clevage: Optional[float] = 0.225
+    epi_threshold: Optional[float] = 1.0
+    output_threshold: Optional[float] = -99.9
+    sort_by: Optional[int] = -1
 
 class NetMHCPanRequest(BaseModel):
-    input_file: str
+    input_filename: str
     mhc_allele: Optional[str] = "HLA-A02:01"
+    peptide_length: Optional[int] = -1
     high_threshold_of_bp: Optional[float] = 0.5
     low_threshold_of_bp: Optional[float] = 2.0
-    peptide_length: Optional[str] = "8,9,10,11"
+    rank_cutoff: Optional[float] = -99.9
 
 class NetMHCStabPanRequest(BaseModel):
     input_file: str
@@ -30,7 +37,8 @@ class NetTCRRequest(BaseModel):
     input_file: str 
 
 class BigMHCRequest(BaseModel):
-    input_file: str    
+    input_filename: str    
+    mhc_allele: Optional[str] = "HLA-A02:01"
     model_type: Optional[str] = "el" 
 
 class PrimeRequest(BaseModel):

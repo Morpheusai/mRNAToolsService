@@ -26,17 +26,26 @@ async def netchop(request: NetChopRequest) -> str:
     """                                    
     NetChops是一种用于预测蛋白质序列中蛋白酶体切割位点的生物信息学工具。
     Args:                                  
-        input_file (str): 输入的肽段序例fasta文件路径           
+        input_filename (str): 输入的肽段序例fasta文件路径           
         cleavage_site_threshold (float): 设定切割位点的置信度阈值（范围：0.0 ~ 1.0）。
+        model (int): 预测模型版本，0-Cterm3.0，1-20S-3.0，默认值0
+        format (int): 输出格式，0-长格式，1-短格式，默认值0
+        strict (int): 严格模式，0-开启严格模式，1-关闭严格模式，默认值0
     Returns:                               
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
-    input_file = request.input_file
+    input_filename = request.input_filename
     cleavage_site_threshold = request.cleavage_site_threshold
+    model = request.model
+    format = request.format
+    strict = request.strict
     try:
         return await run_netchop(
-            input_file,
-            cleavage_site_threshold
+            input_filename,
+            cleavage_site_threshold,
+            model,
+            format,
+            strict
         )
     except Exception as e:
         result = {
@@ -49,27 +58,29 @@ async def netMHCpan(request: NetMHCPanRequest) -> str:
     """
     NetMHCPan用于预测肽段序列和给定MHC分子的结合能力，可高效筛选高亲和力、稳定呈递的候选肽段，用于mRNA 疫苗及个性化免疫治疗。
     Args:
-        input_file: 输入的肽段序例fasta文件路径
-        mhc_allele: MHC比对的等位基因
-        peptide_length: 预测时所使用的肽段长度
-        high_threshold_of_bp: 肽段和MHC分子高结合能力的阈值
-        low_threshold_of_bp: 肽段和MHC分子弱结合能力的阈值
+        input_filename: 输入的肽段序例fasta文件路径
+        mhc_allele: HLA 等位基因（MHC 分子类型）
+        peptide_length: 肽段长度，范围8-11，-1表示使用默认值
+        high_threshold_of_bp: 高结合力肽段的阈值
+        low_threshold_of_bp: 低结合力肽段的阈值
+        rank_cutoff: 输出结果的%Rank截断值
     Returns:
         str: 返回高结合亲和力的肽段序例信息
     """
-    input_file = request.input_file
+    input_filename = request.input_filename
     mhc_allele = request.mhc_allele
     high_threshold_of_bp = request.high_threshold_of_bp
     low_threshold_of_bp = request.low_threshold_of_bp
     peptide_length = request.peptide_length
-    print(1)
+    rank_cutoff = request.rank_cutoff
     try:
         return await run_netmhcpan(
-                input_file,
-                mhc_allele,
-                high_threshold_of_bp,
-                low_threshold_of_bp,
-                peptide_length
+            input_filename,
+            mhc_allele,
+            peptide_length,
+            high_threshold_of_bp,
+            low_threshold_of_bp,
+            rank_cutoff
         )
     except Exception as e:
         result = {
@@ -83,31 +94,37 @@ async def netCTLpan(request: NetCTLPanRequest) -> str:
     使用NetCTLPan工具预测肽段序列与指定MHC分子的结合亲和力，用于筛选潜在的免疫原性肽段。
     该函数结合蛋白质裂解、TAP转运和MHC结合的预测，适用于疫苗设计和免疫研究。
 
-    :param input_file: 输入的FASTA格式肽段序列文件路径
+    :param input_filename: 输入的FASTA格式肽段序列文件路径
     :param mhc_allele: 用于比对的MHC等位基因名称，默认为"HLA-A02:01"
-    :param weight_of_clevage: 蛋白质裂解预测的权重，默认为0.225
+    :param peptide_length: 肽段长度，范围8-11，-1表示不加-l参数
     :param weight_of_tap: TAP转运效率预测的权重，默认为0.025
-    :param peptide_length: 预测的肽段长度范围，默认为"9"
+    :param weight_of_clevage: 蛋白质裂解预测的权重，默认为0.225
+    :param epi_threshold: 表位阈值，默认1.0
+    :param output_threshold: 输出得分阈值，默认-99.9
+    :param sort_by: 排序方式，默认-1
     :return: 返回预测结果字符串，包含高亲和力肽段信息
     """
-    input_file = request.input_file
+    input_filename = request.input_filename
     mhc_allele = request.mhc_allele
     weight_of_clevage = request.weight_of_clevage
     weight_of_tap = request.weight_of_tap 
     peptide_length = request.peptide_length
+    epi_threshold = request.epi_threshold
+    output_threshold = request.output_threshold
+    sort_by = request.sort_by
     try:
         # 调用异步函数并获取返回结果
         result = await run_netctlpan(
-            input_file, 
+            input_filename, 
             mhc_allele, 
-            weight_of_clevage, 
+            peptide_length,
             weight_of_tap, 
-            peptide_length
+            weight_of_clevage,
+            epi_threshold,
+            output_threshold,
+            sort_by
         )
-
-        # 可以根据需要在这里对结果进行更多处理
         return result
-
     except Exception as e:
         # 捕获并返回异常信息
         result = {
@@ -174,16 +191,20 @@ async def bigMHC(request: BigMHCRequest) -> str:
     """                                    
     BigMHC是基于深度学习的 MHC-I 抗原呈递（BigMHC EL）和免疫原性（BigMHC IM）预测工具。
     Args:                                  
-        input_file (str): 输入文件的路径，文件需包含待预测的肽段和 TCR 序列。
+        input_filename (str): 输入文件的路径，文件需包含待预测的肽段序列。
+        mhc_allele (str): MHC-I 等位基因列表，用逗号分隔，如"HLA-A02:01,HLA-A01:01"。
         model_type (str): 模型类型："el"（抗原呈递）或 "im"（免疫原性），默认为el。
     Returns:                               
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
-    input_file = request.input_file
+    input_filename = request.input_filename
+    mhc_allele = request.mhc_allele
     model_type = request.model_type
     try:
         return await run_bigmhc(
-            input_file,model_type
+            input_filename,
+            mhc_allele,
+            model_type
         )
 
     except Exception as e:

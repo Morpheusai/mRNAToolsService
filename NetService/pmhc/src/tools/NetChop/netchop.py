@@ -49,15 +49,21 @@ def check_minio_connection(bucket_name=MINIO_BUCKET):
 
 
 async def run_netchop(
-    input_file: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
-    cleavage_site_threshold: float = 0.5,  # 相对阈值上限
+    input_filename: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
+    cleavage_site_threshold: float = 0.5,  # 切割位点阈值（0~1之间的浮点数）
+    model: int = 0,  # 预测模型版本：0-Cterm3.0，1-20S-3.0
+    format: int = 0,  # 输出格式：0-长格式，1-短格式
+    strict: int = 0,  # 严格模式：0-开启严格模式，1-关闭严格模式
     netchop_dir: str = NETCHOP_DIR
     ) -> str:
 
     """
     异步运行 NetChop 并将处理后的结果上传到 MinIO
-    :param input_file: MinIO 文件路径，格式为 "bucket-name/file-path"
-
+    :param input_filename: MinIO 文件路径，格式为 "bucket-name/file-path"
+    :param cleavage_site_threshold: 切割位点阈值（0~1之间的浮点数），默认值0.5
+    :param model: 预测模型版本，0-Cterm3.0，1-20S-3.0，默认值0
+    :param format: 输出格式，0-长格式，1-短格式，默认值0
+    :param strict: 严格模式，0-开启严格模式，1-关闭严格模式，默认值0
     :return: JSON 字符串，包含 MinIO 文件路径（或下载链接）
     """
 
@@ -65,7 +71,7 @@ async def run_netchop(
     #提取桶名和文件
     try:
         # 去掉 minio:// 前缀
-        path_without_prefix = input_file[len("minio://"):]
+        path_without_prefix = input_filename[len("minio://"):]
         
         # 找到第一个斜杠的位置，用于分割 bucket_name 和 object_name
         first_slash_index = path_without_prefix.find("/")
@@ -115,9 +121,15 @@ async def run_netchop(
     # 构建命令
     cmd = [
         f"{netchop_dir}/netchop",
-        "-t", str(cleavage_site_threshold),  # 添加 -rth 参数
+        "-t", str(cleavage_site_threshold),  # 切割位点阈值
+        "-v", str(model),  # 预测模型版本
+        "-s" if format == 1 else "",  # 输出格式（短格式时添加-s）
+        "-ostrict" if strict == 1 else "",  # 严格模式（关闭严格模式时添加-ostrict）
         str(input_path)  # 输入文件路径
     ]
+    
+    # 过滤掉空字符串
+    cmd = [arg for arg in cmd if arg]
 
     # 启动异步进程
     proc = await asyncio.create_subprocess_exec(
@@ -130,6 +142,8 @@ async def run_netchop(
     # 处理输出
     stdout, stderr = await proc.communicate()
     output_content = stdout.decode()
+    print("2222222222222222222222222")
+    print(output_content)
     if not save_excel(output_content, str(output_dir), output_filename):
         return json.dumps({
             "type": "text",
@@ -180,20 +194,23 @@ async def run_netchop(
             "url": file_path,
             "content": filtered_content  # 替换为生成的 Markdown 内容
         }
-
+        print(result)
     return json.dumps(result, ensure_ascii=False)
 
-def NetChop(input_file: str,cleavage_site_threshold: float = 0.5) -> str:
+def NetChop(input_filename: str, cleavage_site_threshold: float = 0.5, model: int = 0, format: int = 0, strict: int = 0) -> str:
     """                                    
     NetChops是一种用于预测蛋白质序列中蛋白酶体切割位点的生物信息学工具。
     Args:                                  
-        input_file (str): 输入的肽段序例fasta文件路径           
-        cleavage_site_threshold (float): 设定切割位点的置信度阈值（范围：0.0 ~ 1.0）。
+        input_filename (str): 输入的肽段序例fasta文件路径           
+        cleavage_site_threshold (float): 设定切割位点的置信度阈值（范围：0.0 ~ 1.0），默认值0.5
+        model (int): 预测模型版本，0-Cterm3.0，1-20S-3.0，默认值0
+        format (int): 输出格式，0-长格式，1-短格式，默认值0
+        strict (int): 严格模式，0-开启严格模式，1-关闭严格模式，默认值0
     Returns:                               
         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
     """
     try:
-        return asyncio.run(run_netchop(input_file,cleavage_site_threshold))
+        return asyncio.run(run_netchop(input_filename, cleavage_site_threshold, model, format, strict))
 
     except Exception as e:
         result = {
