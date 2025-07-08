@@ -5,53 +5,49 @@ from openpyxl.styles import Alignment
 from pathlib import Path
 
 def save_excel(output: str, output_dir: str, output_filename: str):
-    # Adjusted pattern to match NetCTLpan output columns
-    table_pattern = re.compile(
-        r"^\s*(\d+)\s+([^\s]+)\s+([^\s]+)\s+([A-Za-z]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.]+)\s*(<-E)?",
-        re.MULTILINE
-    )
-    matches = table_pattern.findall(output)
+    # 定义表头
+    columns = ["N", "Sequence Name", "Allele", "Peptide", "MHC", "TAP", "Cle", "Comb", "%Rank"]
 
-    # Define columns based on NetCTLpan output
-    columns = ["N", "Sequence Name", "Allele", "Peptide",
-               "MHC", "TAP", "Cle", "Comb", "%Rank", "Epitope"]
-    df = pd.DataFrame(matches, columns=columns)
+    # 分块（每个等位基因一块）
+    blocks = re.split(r"-{20,}", output)
 
-    # Convert numeric columns to appropriate types
-    numeric_cols = ["N", "MHC", "TAP", "Cle", "Comb", "%Rank"]
-    for col in numeric_cols:
-        df[col] = pd.to_numeric(df[col])
+    all_data = []
+    for block in blocks:
+        # 匹配数据行（以数字开头，字段用空格分隔，允许最后一列缺失）
+        data_lines = re.findall(
+            r"^\s*(\d+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+([\-\d.]+)\s+([\-\d.]+)\s+([\-\d.]+)\s+([\-\d.]+)\s+([\-\d.]+)?\s*$",
+            block, re.MULTILINE
+        )
+        for line in data_lines:
+            row = list(line)
+            # %Rank 可能为空，补空
+            if len(row) < 9:
+                row += [''] * (9 - len(row))
+            all_data.append(row)
 
-    # Replace empty epitope field with "" instead of NaN
-    df["Epitope"] = df["Epitope"].fillna("")
+        # 匹配统计行
+        summary_match = re.search(r"Number of MHC ligands.+?protein.+", block, re.IGNORECASE)
+        if summary_match:
+            summary_row = [summary_match.group()] + [''] * (len(columns) - 1)
+            all_data.append(summary_row)
 
-    # Extract summary line (e.g., "Number of MHC ligands...")
-    summary_pattern = re.compile(r"Number of MHC ligands.*")
-    summary_match = summary_pattern.findall(output)
+    # 写入 DataFrame
+    df = pd.DataFrame(all_data, columns=columns)
 
-    # Add summary as a new row if found
-    if summary_match:
-        summary_row = [summary_match[0]] + [""] * (len(columns) - 1)
-        df.loc[len(df)] = summary_row
-
-    # Define output file path
+    # 写入 Excel 并合并统计行
     output_path = Path(output_dir) / output_filename
-
-    # Write to Excel
     with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name="Results", index=False)
-
-        # Get workbook and worksheet objects
-        workbook = writer.book
         worksheet = writer.sheets["Results"]
-
-        # If summary exists, merge the last row's cells and center the text
-        if summary_match:
-            worksheet.merge_cells(start_row=len(
-                df) + 1, start_column=1, end_row=len(df) + 1, end_column=len(columns))
-            cell = worksheet.cell(row=len(df) + 1, column=1)
+        for idx in df.index[df['N'].str.contains('Number of MHC ligands', na=False)]:
+            excel_row = idx + 2  # Excel行号
+            worksheet.merge_cells(
+                start_row=excel_row,
+                start_column=1,
+                end_row=excel_row,
+                end_column=len(columns)
+            )
+            cell = worksheet.cell(row=excel_row, column=1)
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
-    # Save the workbook
-    workbook.save(output_path)
-    # print(f"Excel file saved to: {output_path}")
+    return output_path

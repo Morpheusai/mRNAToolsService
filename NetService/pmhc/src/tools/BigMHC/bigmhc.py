@@ -286,7 +286,7 @@ async def run_bigmhc(
                 df = pd.read_csv(output_tmp_path_filename)
                 df.to_excel(excel_file, index=False, engine="openpyxl")
                 # 调用markdown过滤函数
-                filtered_content = filter_bigmhc_output(excel_file)            
+                # filtered_content = filter_bigmhc_output(excel_file)            
             except FileNotFoundError:
                 logger.error(f"警告: 未找到预测结果文件 {output_tmp_path_filename}")
                 return json.dumps({
@@ -322,10 +322,15 @@ async def run_bigmhc(
                     input_path.unlink(missing_ok=True)  # 只删除输入文件，保留输出文件
 
             # 返回结果
+            # result = {
+            #     "type": "link",
+            #     "url": file_path,
+            #     "content": filtered_content  # 替换为生成的 Markdown 内容
+            # }
             result = {
                 "type": "link",
                 "url": file_path,
-                "content": filtered_content  # 替换为生成的 Markdown 内容
+                "content": "bigmhc处理完成"  # 替换为生成的 Markdown 内容
             }
 
         return json.dumps(result, ensure_ascii=False)

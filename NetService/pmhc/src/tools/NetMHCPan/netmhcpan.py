@@ -145,7 +145,6 @@ async def run_netmhcpan(
 
     # 过滤掉空字符串
     cmd = [arg for arg in cmd if arg]
-
     # 启动异步进程
     proc = await asyncio.create_subprocess_exec(
         *cmd,
@@ -162,7 +161,10 @@ async def run_netmhcpan(
     # print(f"stdout:{stdout_text}")
     # print(f"stderr:{stderr_text}")
     # exit()
-    # print(output)
+    print("11111111111111111111111111111111111111")
+    print("11111111111111111111111111111111111111")
+    print("11111111111111111111111111111111111111")        
+    print(output)
     save_excel(output,output_dir,output_filename)
 
     # # 直接将所有内容写入文件
@@ -170,7 +172,7 @@ async def run_netmhcpan(
     #     f.write("\n".join(output.splitlines()))
        
     # 调用过滤函数
-    filtered_content = filter_netmhcpan_excel(output_path)
+    # filtered_content = filter_netmhcpan_excel(output_path)
     
     # 错误处理
     if proc.returncode != 0:
@@ -204,11 +206,17 @@ async def run_netmhcpan(
                 input_path.unlink(missing_ok=True)  # 只删除输入文件，保留输出文件
 
         # 返回结果
+        # result = {
+        #     "type": "link",
+        #     "url": file_path,
+        #     "content": filtered_content  # 替换为生成的 Markdown 内容
+        # }
         result = {
             "type": "link",
             "url": file_path,
-            "content": filtered_content  # 替换为生成的 Markdown 内容
+            "content": "NetMHCPan处理完成"  
         }
+        
 
     return json.dumps(result, ensure_ascii=False)
 

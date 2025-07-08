@@ -17,6 +17,7 @@ class NetCTLPanRequest(BaseModel):
     epi_threshold: Optional[float] = 1.0
     output_threshold: Optional[float] = -99.9
     sort_by: Optional[int] = -1
+    num_workers: Optional[int] = 1
 
 class NetMHCPanRequest(BaseModel):
     input_filename: str

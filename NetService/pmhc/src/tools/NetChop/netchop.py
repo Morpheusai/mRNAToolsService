@@ -142,8 +142,8 @@ async def run_netchop(
     # 处理输出
     stdout, stderr = await proc.communicate()
     output_content = stdout.decode()
-    print("2222222222222222222222222")
-    print(output_content)
+    # print("2222222222222222222222222")
+    # print(output_content)
     if not save_excel(output_content, str(output_dir), output_filename):
         return json.dumps({
             "type": "text",
@@ -194,7 +194,7 @@ async def run_netchop(
             "url": file_path,
             "content": filtered_content  # 替换为生成的 Markdown 内容
         }
-        print(result)
+        # print(result)
     return json.dumps(result, ensure_ascii=False)
 
 def NetChop(input_filename: str, cleavage_site_threshold: float = 0.5, model: int = 0, format: int = 0, strict: int = 0) -> str:

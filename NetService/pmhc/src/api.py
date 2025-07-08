@@ -14,7 +14,7 @@ from src.protocols import (
 
 from src.tools.NetChop.netchop import run_netchop
 from src.tools.NetMHCPan.netmhcpan import run_netmhcpan
-from src.tools.NetCTLPan.netctlpan import run_netctlpan
+from src.tools.NetCTLPan.netctlpan import  run_netctlpan_parallel
 from src.tools.NetMHCStabPan.netmhcstabpan import run_netmhcstabpan
 from src.tools.NetTCR.nettcr import run_nettcr
 from src.tools.BigMHC.bigmhc import run_bigmhc
@@ -93,7 +93,6 @@ async def netCTLpan(request: NetCTLPanRequest) -> str:
     """
     使用NetCTLPan工具预测肽段序列与指定MHC分子的结合亲和力，用于筛选潜在的免疫原性肽段。
     该函数结合蛋白质裂解、TAP转运和MHC结合的预测，适用于疫苗设计和免疫研究。
-
     :param input_filename: 输入的FASTA格式肽段序列文件路径
     :param mhc_allele: 用于比对的MHC等位基因名称，默认为"HLA-A02:01"
     :param peptide_length: 肽段长度，范围8-11，-1表示不加-l参数
@@ -102,6 +101,7 @@ async def netCTLpan(request: NetCTLPanRequest) -> str:
     :param epi_threshold: 表位阈值，默认1.0
     :param output_threshold: 输出得分阈值，默认-99.9
     :param sort_by: 排序方式，默认-1
+    :param num_workers: 并行任务数，默认1
     :return: 返回预测结果字符串，包含高亲和力肽段信息
     """
     input_filename = request.input_filename
@@ -112,17 +112,20 @@ async def netCTLpan(request: NetCTLPanRequest) -> str:
     epi_threshold = request.epi_threshold
     output_threshold = request.output_threshold
     sort_by = request.sort_by
+    # 新增并行参数，默认1
+    num_workers = getattr(request, 'num_workers', 1)
     try:
-        # 调用异步函数并获取返回结果
-        result = await run_netctlpan(
-            input_filename, 
-            mhc_allele, 
+        # 直接调用run_netctlpan_parallel，参数顺序与netctlpan.py保持一致
+        result = await run_netctlpan_parallel(
+            input_filename,
+            mhc_allele,
             peptide_length,
             weight_of_tap, 
             weight_of_clevage,
             epi_threshold,
             output_threshold,
-            sort_by
+            sort_by,
+            num_workers
         )
         return result
     except Exception as e:
