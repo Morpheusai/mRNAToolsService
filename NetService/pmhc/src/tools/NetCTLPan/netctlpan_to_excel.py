@@ -15,7 +15,7 @@ def save_excel(output: str, output_dir: str, output_filename: str):
     for block in blocks:
         # 匹配数据行（以数字开头，字段用空格分隔，允许最后一列缺失）
         data_lines = re.findall(
-            r"^\s*(\d+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+([\-\d.]+)\s+([\-\d.]+)\s+([\-\d.]+)\s+([\-\d.]+)\s+([\-\d.]+)?\s*$",
+            r"^\s*(\d+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+([\-\d.]+)\s+([\-\d.]+)\s+([\-\d.]+)\s+([\-\d.]+)\s+([\-\d.]+(?:\s+[^\s]+)?)\s*$",
             block, re.MULTILINE
         )
         for line in data_lines:

@@ -12,6 +12,7 @@ def split_fasta(input_fasta: str, num_workers: int, output_dir: str) -> List[str
     """
     将一个FASTA文件均匀拆分为num_workers个子文件，返回子文件路径列表。
     拆分原则：每个子文件包含尽量均匀数量的肽段（以'>'开头为一条记录）。
+    如果肽段数量少于worker数量，则调整为肽段数量的worker数。
     :param input_fasta: 原始FASTA文件路径
     :param num_workers: 并行任务数
     :param output_dir: 拆分后子文件存放目录
@@ -33,10 +34,16 @@ def split_fasta(input_fasta: str, num_workers: int, output_dir: str) -> List[str
             current.append(line)
     if current:
         records.append(current)
-    # 均匀分配到num_workers个文件
-    chunk_size = math.ceil(len(records) / num_workers)
+    
+    # 调整worker数量，避免过度拆分
+    actual_workers = min(num_workers, len(records))
+    if actual_workers < num_workers:
+        print(f"警告：肽段数量({len(records)})少于worker数量({num_workers})，调整为{actual_workers}个worker")
+    
+    # 均匀分配到actual_workers个文件
+    chunk_size = math.ceil(len(records) / actual_workers)
     sub_files = []
-    for i in range(num_workers):
+    for i in range(actual_workers):
         chunk = records[i*chunk_size:(i+1)*chunk_size]
         if not chunk:
             continue
@@ -79,8 +86,9 @@ def merge_excels(excel_files: List[str], output_excel: str):
     """
     # 读取第一个表，保留表头
     merged = pd.read_excel(excel_files[0], sheet_name=0, header=0)
-    # 依次读取后续表，去掉表头（header=None），直接追加
     for file in excel_files[1:]:
-        df = pd.read_excel(file, sheet_name=0, header=None, skiprows=1)
+        # 读取后续表，保留表头，保证列名和顺序一致
+        df = pd.read_excel(file, sheet_name=0, header=0)
+        df = df[merged.columns]  # 保证列顺序和列名一致
         merged = pd.concat([merged, df], ignore_index=True)
     merged.to_excel(output_excel, index=False, header=True) 

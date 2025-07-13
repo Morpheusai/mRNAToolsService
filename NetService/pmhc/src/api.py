@@ -12,9 +12,9 @@ from src.protocols import (
     RNAFoldRequest
 )
 
-from src.tools.NetChop.netchop import run_netchop
-from src.tools.NetMHCPan.netmhcpan import run_netmhcpan
-from src.tools.NetCTLPan.netctlpan import  run_netctlpan_parallel
+from src.tools.NetChop.netchop import run_netchop_parallel
+from src.tools.NetMHCPan.netmhcpan import run_netmhcpan_multi_length
+from src.tools.NetCTLPan.netctlpan import  run_netctlpan_multi_length
 from src.tools.NetMHCStabPan.netmhcstabpan import run_netmhcstabpan
 from src.tools.NetTCR.nettcr import run_nettcr
 from src.tools.BigMHC.bigmhc import run_bigmhc
@@ -39,13 +39,17 @@ async def netchop(request: NetChopRequest) -> str:
     model = request.model
     format = request.format
     strict = request.strict
+    num_workers = request.num_workers
+    window_sizes = request.window_sizes
     try:
-        return await run_netchop(
+        return await run_netchop_parallel(
             input_filename,
             cleavage_site_threshold,
             model,
             format,
-            strict
+            strict,
+            num_workers,
+            window_sizes
         )
     except Exception as e:
         result = {
@@ -73,14 +77,19 @@ async def netMHCpan(request: NetMHCPanRequest) -> str:
     low_threshold_of_bp = request.low_threshold_of_bp
     peptide_length = request.peptide_length
     rank_cutoff = request.rank_cutoff
+    mode = request.mode
+    # 新增并行参数，默认1
+    num_workers = getattr(request, 'num_workers', 1)
     try:
-        return await run_netmhcpan(
+        return await run_netmhcpan_multi_length(
             input_filename,
             mhc_allele,
             peptide_length,
             high_threshold_of_bp,
             low_threshold_of_bp,
-            rank_cutoff
+            rank_cutoff,
+            num_workers,
+            mode
         )
     except Exception as e:
         result = {
@@ -102,6 +111,8 @@ async def netCTLpan(request: NetCTLPanRequest) -> str:
     :param output_threshold: 输出得分阈值，默认-99.9
     :param sort_by: 排序方式，默认-1
     :param num_workers: 并行任务数，默认1
+    :param mode: 肽段是否需要切割，1表示切割
+    :param hla_mode: 是否只使用一个hla，1表示使用
     :return: 返回预测结果字符串，包含高亲和力肽段信息
     """
     input_filename = request.input_filename
@@ -112,11 +123,15 @@ async def netCTLpan(request: NetCTLPanRequest) -> str:
     epi_threshold = request.epi_threshold
     output_threshold = request.output_threshold
     sort_by = request.sort_by
+    mode = request.mode
+    hla_mode = request.hla_mode
+    peptide_duplication_mode = request.peptide_duplication_mode
+
     # 新增并行参数，默认1
     num_workers = getattr(request, 'num_workers', 1)
     try:
-        # 直接调用run_netctlpan_parallel，参数顺序与netctlpan.py保持一致
-        result = await run_netctlpan_parallel(
+        # 直接调用run_netctlpan_multi_length
+        result = await run_netctlpan_multi_length(
             input_filename,
             mhc_allele,
             peptide_length,
@@ -125,7 +140,10 @@ async def netCTLpan(request: NetCTLPanRequest) -> str:
             epi_threshold,
             output_threshold,
             sort_by,
-            num_workers
+            num_workers,
+            mode,
+            hla_mode,
+            peptide_duplication_mode
         )
         return result
     except Exception as e:

@@ -3,16 +3,20 @@ import json
 import os
 import sys
 import uuid
+import traceback
 
 from dotenv import load_dotenv
 from minio import Minio
 from minio.error import S3Error
 from pathlib import Path
+from typing import List
 
 from config import CONFIG_YAML
 from src.tools.NetChop.filter_netchop import filter_netchop_output
 from src.tools.NetChop.netchop_to_excel import save_excel
 from src.utils.log import logger
+from src.utils.parallel_utils import split_fasta, run_commands_async, merge_excels
+from src.utils.minio_utils import download_from_minio_uri, upload_file_to_minio
 
 load_dotenv()
 # MinIO 配置:
@@ -36,185 +40,194 @@ minio_client = Minio(
     secret_key=MINIO_SECRET_KEY,
     secure=MINIO_SECURE
 )
-#检查minio是否可用
-def check_minio_connection(bucket_name=MINIO_BUCKET):
-    try:
-        minio_client.list_buckets()
-        if not minio_client.bucket_exists(bucket_name):
-            minio_client.make_bucket(bucket_name)
-        return True
-    except S3Error as e:
-        print(f"MinIO连接或bucket操作失败: {e}")
-        return False
 
-
-async def run_netchop(
-    input_filename: str,  # MinIO 文件路径，格式为 "bucket-name/file-path"
-    cleavage_site_threshold: float = 0.5,  # 切割位点阈值（0~1之间的浮点数）
-    model: int = 0,  # 预测模型版本：0-Cterm3.0，1-20S-3.0
-    format: int = 0,  # 输出格式：0-长格式，1-短格式
-    strict: int = 0,  # 严格模式：0-开启严格模式，1-关闭严格模式
-    netchop_dir: str = NETCHOP_DIR
-    ) -> str:
-
+def sliding_window_from_file(input_file: str, window_sizes: List[int], output_file: str) -> None:
     """
-    异步运行 NetChop 并将处理后的结果上传到 MinIO
-    :param input_filename: MinIO 文件路径，格式为 "bucket-name/file-path"
-    :param cleavage_site_threshold: 切割位点阈值（0~1之间的浮点数），默认值0.5
-    :param model: 预测模型版本，0-Cterm3.0，1-20S-3.0，默认值0
-    :param format: 输出格式，0-长格式，1-短格式，默认值0
-    :param strict: 严格模式，0-开启严格模式，1-关闭严格模式，默认值0
-    :return: JSON 字符串，包含 MinIO 文件路径（或下载链接）
+    从 FASTA 文件读取序列，进行滑窗切割，并输出到新的 FASTA 文件。
+    标识头格式：>原标识_子序列_子序列长度
+
+    参数:
+        input_file: 输入 FASTA 文件路径（.fasta 或 .fsa）。
+        window_sizes: 滑窗长度的列表（如 [8, 9, 10]）。
+        output_file: 输出 FASTA 文件路径。
     """
+    # 读取输入文件
+    with open(input_file, 'r') as f:
+        fasta_content = f.read()
 
-    minio_available = check_minio_connection()
-    #提取桶名和文件
-    try:
-        # 去掉 minio:// 前缀
-        path_without_prefix = input_filename[len("minio://"):]
-        
-        # 找到第一个斜杠的位置，用于分割 bucket_name 和 object_name
-        first_slash_index = path_without_prefix.find("/")
-        
-        if first_slash_index == -1:
-            raise ValueError("Invalid file path format: missing bucket name or object name")
-        
-        # 提取 bucket_name 和 object_name
-        bucket_name = path_without_prefix[:first_slash_index]
-        object_name = path_without_prefix[first_slash_index + 1:]
-        
-        # 打印提取结果（可选）
-        # logger.info(f"Extracted bucket_name: {bucket_name}, object_name: {object_name}")
-        
-    except Exception as e:
-        logger.error(f"Failed to parse file_path: {file_path}, error: {str(e)}")
-        raise str(status_code=400, detail=f"Failed to parse file path: {str(e)}")     
+    # 解析原始 FASTA
+    peptides = {}
+    current_id = None
+    current_seq = []
 
-    try:
-        response = minio_client.get_object(bucket_name, object_name)
-        file_content = response.read().decode("utf-8")
-    except S3Error as e:
-        return json.dumps({
-            "type": "text",
-            "content": f"无法从 MinIO 读取文件: {str(e)}"
-        }, ensure_ascii=False)    
+    for line in fasta_content.split('\n'):
+        line = line.strip()
+        if line.startswith('>'):
+            if current_id is not None:
+                peptides[current_id] = ''.join(current_seq)
+            current_id = line[1:]  # 去掉 '>'
+            current_seq = []
+        else:
+            if line:  # 忽略空行
+                current_seq.append(line)
 
-    # 生成随机ID和文件路径
+    if current_id is not None:  # 添加最后一条序列
+        peptides[current_id] = ''.join(current_seq)
+
+    # 生成滑窗子序列并格式化为 FASTA
+    output_lines = []
+    for peptide_id, seq in peptides.items():
+        for window in window_sizes:
+            if window > len(seq):
+                continue  # 跳过无效窗口
+            for i in range(len(seq) - window + 1):
+                subseq = seq[i:i+window]
+                # 新标识符格式：>原标识_子序列_子序列长度
+                header = f">{peptide_id}_{subseq}_{window}"
+                output_lines.append(header)
+                output_lines.append(subseq)
+
+    # 写入输出文件
+    with open(output_file, 'w') as f:
+        f.write('\n'.join(output_lines))
+
+
+# 新增：单文件处理逻辑（原run_netchop主体，便于并行调用）
+async def run_netchop_single(
+    input_fasta: str,
+    cleavage_site_threshold: float = 0.5,
+    model: int = 0,
+    format: int = 0,
+    strict: int = 0,
+    netchop_dir: str = NETCHOP_DIR,
+    output_dir: str = OUTPUT_TMP_DIR
+) -> str:
+    """
+    单个FASTA文件运行NetChop，返回Excel路径。
+    该函数用于并行主流程的子任务，也可单独调用。
+    :param input_fasta: 单个FASTA文件路径
+    :return: 生成的Excel文件路径
+    """
     random_id = uuid.uuid4().hex
-    #base_path = Path(__file__).resolve().parents[3]  # 根据文件位置调整层级
     input_dir = Path(INPUT_TMP_DIR)
-    output_dir =Path(OUTPUT_TMP_DIR)
-
-    # 创建目录
+    output_dir = Path(OUTPUT_TMP_DIR)
     input_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    # 写入输入文件
     input_path = input_dir / f"{random_id}.fsa"
     with open(str(input_path), "w") as f:
-        f.write(file_content)
-
-    # 构建输出文件名和临时路径
+        with open(input_fasta, "r") as fin:
+            f.write(fin.read())
     output_filename = f"{random_id}_NetChop_results.xlsx"
     output_path = output_dir / output_filename
-
-    # 构建命令
     cmd = [
         f"{netchop_dir}/netchop",
-        "-t", str(cleavage_site_threshold),  # 切割位点阈值
-        "-v", str(model),  # 预测模型版本
-        "-s" if format == 1 else "",  # 输出格式（短格式时添加-s）
-        "-ostrict" if strict == 1 else "",  # 严格模式（关闭严格模式时添加-ostrict）
-        str(input_path)  # 输入文件路径
+        "-t", str(cleavage_site_threshold),
+        "-v", str(model),
+        "-s" if format == 1 else "",
+        "-ostrict" if strict == 1 else "",
+        str(input_path)
     ]
     
     # 过滤掉空字符串
     cmd = [arg for arg in cmd if arg]
 
-    # 启动异步进程
+    # 启动外部命令，异步等待完成
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=f"{netchop_dir}"
     )
-
-    # 处理输出
     stdout, stderr = await proc.communicate()
     output_content = stdout.decode()
-    # print("2222222222222222222222222")
-    # print(output_content)
-    if not save_excel(output_content, str(output_dir), output_filename):
-        return json.dumps({
-            "type": "text",
-            "content": f"转换excel表失败"
-        }, ensure_ascii=False)   
-
-    # # 直接将所有内容写入文件
-    # with open(output_path, "w") as f:
-    #     f.write("\n".join(output_content.splitlines()))
-       
-    # 调用过滤函数
-    filtered_content = filter_netchop_output(output_content.splitlines())
     
-    # 错误处理
-    if proc.returncode != 0:
-        error_msg = stderr.decode()
-        input_path.unlink(missing_ok=True)
-        output_path.unlink(missing_ok=True)
-        result = {
-            "type": "text",
-            "content": "您的输入信息可能有误，请核对正确再试。"
-        }
-    else:
+    # 保存命令输出为Excel
+    # print(output_content)
+    save_excel(output_content, str(output_dir), output_filename)
+    input_path.unlink(missing_ok=True)
+    return str(output_path)
+
+# 新增：并行处理逻辑
+async def run_netchop_parallel(
+    input_fasta: str,
+    cleavage_site_threshold: float = 0.5,
+    model: int = 0,
+    format: int = 0,
+    strict: int = 0,
+    num_workers: int = 1,
+    window_sizes: List[int] =[8,9,10,11],
+    netchop_dir: str = NETCHOP_DIR,
+    output_dir: str = OUTPUT_TMP_DIR
+) -> str:
+    # 1. 拆分FASTA
+    if isinstance(input_fasta, str) and input_fasta.startswith("minio://"):
+        input_fasta = download_from_minio_uri(input_fasta, INPUT_TMP_DIR)
+
+    sliding_window_from_file(input_fasta, window_sizes, input_fasta)
+
+    split_dir = Path(output_dir) / f"split_{uuid.uuid4().hex}"
+    split_dir.mkdir(parents=True, exist_ok=True)
+    sub_fastas = split_fasta(input_fasta, num_workers, str(split_dir))
+    # 2. 并发调度
+    async def run_one(sub_fasta, *_):
+        return await run_netchop_single(
+            sub_fasta, cleavage_site_threshold, model, format, strict, netchop_dir, output_dir
+        )
+    excel_files = await run_commands_async(run_one, sub_fastas, num_workers=num_workers)
+    # 3. 合并Excel
+    merged_excel = Path(output_dir) / f"merged_{uuid.uuid4().hex}_NetChop_results.xlsx"
+    merge_excels(excel_files, str(merged_excel))
+    # 4. 先上传合并后的Excel到MinIO
+    minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET)
+    # 5. 清理中间excel、分片fasta和分片目录
+    for f in excel_files:
         try:
-            if minio_available:
-                minio_client.fput_object(
-                    MINIO_BUCKET,
-                    output_filename,
-                    str(output_path)
-                )
-                file_path = f"minio://{MINIO_BUCKET}/{output_filename}"
-            else:
-                # 如果 MinIO 不可用，返回下载链接
-                file_path = f"{DOWNLOADER_PREFIX}{output_filename}"
-        except S3Error as e:
-            file_path = f"{DOWNLOADER_PREFIX}{output_filename}"
-        finally:
-            # 如果 MinIO 成功上传，清理临时文件；否则保留
-            if minio_available:
-                input_path.unlink(missing_ok=True)
-                output_path.unlink(missing_ok=True)
-            else:
-                input_path.unlink(missing_ok=True)  # 只删除输入文件，保留输出文件
-
-        # 返回结果
-        result = {
-            "type": "link",
-            "url": file_path,
-            "content": filtered_content  # 替换为生成的 Markdown 内容
-        }
-        # print(result)
-    return json.dumps(result, ensure_ascii=False)
-
-def NetChop(input_filename: str, cleavage_site_threshold: float = 0.5, model: int = 0, format: int = 0, strict: int = 0) -> str:
-    """                                    
-    NetChops是一种用于预测蛋白质序列中蛋白酶体切割位点的生物信息学工具。
-    Args:                                  
-        input_filename (str): 输入的肽段序例fasta文件路径           
-        cleavage_site_threshold (float): 设定切割位点的置信度阈值（范围：0.0 ~ 1.0），默认值0.5
-        model (int): 预测模型版本，0-Cterm3.0，1-20S-3.0，默认值0
-        format (int): 输出格式，0-长格式，1-短格式，默认值0
-        strict (int): 严格模式，0-开启严格模式，1-关闭严格模式，默认值0
-    Returns:                               
-        str: 返回高结合亲和力的肽段序例信息                                                                                                                           
-    """
+            if Path(f).exists():
+                Path(f).unlink()
+        except Exception as e:
+            print(f"[WARN] 删除中间Excel失败: {f}, {e}")
+            traceback.print_exc()
+    for f in sub_fastas:
+        try:
+            if Path(f).exists():
+                Path(f).unlink()
+        except Exception as e:
+            print(f"[WARN] 删除分片FASTA失败: {f}, {e}")
+            traceback.print_exc()
     try:
-        return asyncio.run(run_netchop(input_filename, cleavage_site_threshold, model, format, strict))
-
+        if merged_excel.exists():
+            merged_excel.unlink()
     except Exception as e:
-        result = {
-            "type": "text",
-            "content": f"调用NetChop工具失败: {e}"
-        }
-        return json.dumps(result, ensure_ascii=False)
+        print(f"[WARN] 删除合并Excel失败: {merged_excel}, {e}")
+        traceback.print_exc()
+    try:
+        if split_dir.exists():
+            split_dir.rmdir()
+    except Exception as e:
+        print(f"[WARN] 删除分片目录失败: {split_dir}, {e}")
+        traceback.print_exc()
+
+    return json.dumps({"type": "link", "url": minio_excel_path, "content": "NetChop并行处理完成，结果已合并。"}, ensure_ascii=False)
+
+
+# def NetChop(input_filename: str, cleavage_site_threshold: float = 0.5, model: int = 0, format: int = 0, strict: int = 0) -> str:
+#     """                                    
+#     NetChops是一种用于预测蛋白质序列中蛋白酶体切割位点的生物信息学工具。
+#     Args:                                  
+#         input_filename (str): 输入的肽段序例fasta文件路径           
+#         cleavage_site_threshold (float): 设定切割位点的置信度阈值（范围：0.0 ~ 1.0），默认值0.5
+#         model (int): 预测模型版本，0-Cterm3.0，1-20S-3.0，默认值0
+#         format (int): 输出格式，0-长格式，1-短格式，默认值0
+#         strict (int): 严格模式，0-开启严格模式，1-关闭严格模式，默认值0
+#     Returns:                               
+#         str: 返回高结合亲和力的肽段序例信息                                                                                                                           
+#     """
+#     try:
+#         return asyncio.run(run_netchop(input_filename, cleavage_site_threshold, model, format, strict))
+
+#     except Exception as e:
+#         result = {
+#             "type": "text",
+#             "content": f"调用NetChop工具失败: {e}"
+#         }
+#         return json.dumps(result, ensure_ascii=False)
