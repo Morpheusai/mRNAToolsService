@@ -52,9 +52,11 @@ async def netchop(request: NetChopRequest) -> str:
             window_sizes
         )
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         result = {
             "type": "text",
-            "content": f"调用NetChop工具失败: {e}"
+            "content": f"调用NetChop工具失败: {str(e)}\n\n完整异常堆栈:\n{error_trace}"
         }
         return json.dumps(result, ensure_ascii=False)
 
@@ -92,9 +94,11 @@ async def netMHCpan(request: NetMHCPanRequest) -> str:
             mode
         )
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         result = {
             "type": "text",
-            "content": f"调用NetMHCPan工具失败: {e}"
+            "content": f"调用NetMHCPan工具失败: {str(e)}\n\n完整异常堆栈:\n{error_trace}"
         }
         return json.dumps(result, ensure_ascii=False)
 
@@ -148,9 +152,11 @@ async def netCTLpan(request: NetCTLPanRequest) -> str:
         return result
     except Exception as e:
         # 捕获并返回异常信息
+        import traceback
+        error_trace = traceback.format_exc()
         result = {
             "type": "text",
-            "content": f"调用NetCTLPan工具失败: {str(e)}"
+            "content": f"调用NetCTLPan工具失败: {str(e)}\n\n完整异常堆栈:\n{error_trace}"
         }
         return json.dumps(result, ensure_ascii=False)
 
@@ -180,9 +186,11 @@ async def netMHCstabpan(request: NetMHCStabPanRequest) -> str:
             peptide_length
         )
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         result = {
             "type": "text",
-            "content": f"调用NetMHCStabPan工具失败: {e}"
+            "content": f"调用NetMHCStabPan工具失败: {str(e)}\n\n完整异常堆栈:\n{error_trace}"
         }
         return json.dumps(result, ensure_ascii=False)
 
@@ -201,9 +209,11 @@ async def netTCR(request: NetTCRRequest) -> str:
         )
 
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         result = {
             "type": "text",
-            "content": f"调用NetTCR工具失败: {e}"
+            "content": f"调用NetTCR工具失败: {str(e)}\n\n完整异常堆栈:\n{error_trace}"
         }
         return json.dumps(result, ensure_ascii=False)
 
@@ -229,9 +239,11 @@ async def bigMHC(request: BigMHCRequest) -> str:
         )
 
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         result = {
             "type": "text",
-            "content": f"调用BigMHC工具失败: {e}"
+            "content": f"调用BigMHC工具失败: {str(e)}\n\n完整异常堆栈:\n{error_trace}"
         }
         return json.dumps(result, ensure_ascii=False)
 
@@ -253,9 +265,11 @@ async def prime(request: PrimeRequest) -> str:
         )
 
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         result = {
             "type": "text",
-            "content": f"调用Prime工具失败: {e}"
+            "content": f"调用Prime工具失败: {str(e)}\n\n完整异常堆栈:\n{error_trace}"
         }
         return json.dumps(result, ensure_ascii=False)
     
@@ -274,9 +288,11 @@ async def rnaPlot(request: RNAPlotRequest) -> str:
         )
 
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         result = {
             "type": "text",
-            "content": f"调用RNAPlot工具失败: {e}"
+            "content": f"调用RNAPlot工具失败: {str(e)}\n\n完整异常堆栈:\n{error_trace}"
         }
         return json.dumps(result, ensure_ascii=False)    
     
