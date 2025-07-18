@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import uuid
+import datetime
 
 from dotenv import load_dotenv
 from minio import Minio
@@ -15,6 +16,8 @@ from src.utils.parallel_utils import split_fasta, run_commands_async, merge_exce
 from src.utils.minio_utils import download_from_minio_uri, upload_file_to_minio
 import traceback
 from typing import List
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 load_dotenv()
 current_file = Path(__file__).resolve()
@@ -428,10 +431,13 @@ async def run_netmhcpan_multi_length(
                 traceback.print_exc()
                 raise
             # 5. 合并所有excel
-            merged_excel = Path(output_dir) / f"merged_multi_{uuid.uuid4().hex}_NetCTLpan_results.xlsx"
+            merged_excel = Path(output_dir) / f"merged_multi_{uuid.uuid4().hex}_NetMHCPan_results.xlsx"
             merge_excels(valid_excels, str(merged_excel))
             # 6. 上传合并后的Excel到MinIO
-            minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET)
+            beijing_time = datetime.now(ZoneInfo("Asia/Shanghai"))
+            time_str = beijing_time.strftime('%Y-%m-%d_%H-%M-%S')
+            tool_output_filename = f"{uuid.uuid4().hex}_NetMHCPan_results_{time_str}.xlsx"
+            minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET, tool_output_filename)
             # 7. 删除所有中间excel和分组fasta和合并excel
             for f in excel_files:
                 try:
@@ -459,8 +465,8 @@ async def run_netmhcpan_multi_length(
             except Exception as e:
                 print(f"[WARN] 删除分组目录失败: {split_dir}, {e}")
                 traceback.print_exc()
-                 
-            return json.dumps({"type": "link", "url": minio_excel_path, "content": "NetCTLpan多肽长并行处理完成，结果已合并。"}, ensure_ascii=False)
+
+            return json.dumps({"type": "link", "url": minio_excel_path, "content": "NetMHCPan多肽长并行处理完成，结果已合并。"}, ensure_ascii=False)
         else:
             # 3. 其它情况，原有分片并发逻辑
             # 1. 下载minio文件到本地（如有需要）
@@ -470,7 +476,7 @@ async def run_netmhcpan_multi_length(
             split_dir = Path(output_dir) / f"split_{uuid.uuid4().hex}"
             split_dir.mkdir(parents=True, exist_ok=True)
             sub_fastas = split_fasta(input_fasta, num_workers, str(split_dir))
-            # 4. 针对每个肽长并发run_netctlpan_parallel，传入同一批分片
+            # 4. 针对每个肽长并发run_netmhcpan_parallel，传入同一批分片
             try:
                 tasks = [
                 run_netmhcpan_parallel(
@@ -490,12 +496,15 @@ async def run_netmhcpan_multi_length(
                     print("[ERROR] 没有生成任何有效的Excel文件，无法合并！")
                     raise RuntimeError("没有生成任何有效的Excel文件，无法合并！")
                 # 5. 合并所有excel
-                merged_excel = Path(output_dir) / f"merged_multi_{uuid.uuid4().hex}_NetCTLpan_results.xlsx"
+                merged_excel = Path(output_dir) / f"merged_multi_{uuid.uuid4().hex}_NetMHCPan_results.xlsx"
                 merge_excels(valid_excels, str(merged_excel))
                 # 6. 上传合并后的Excel到MinIO
-                minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET)
+                beijing_time = datetime.now(ZoneInfo("Asia/Shanghai"))
+                time_str = beijing_time.strftime('%Y-%m-%d_%H-%M-%S')
+                tool_output_filename = f"{uuid.uuid4().hex}_NetMHCPan_results_{time_str}.xlsx"
+                minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET, tool_output_filename)
             except Exception as e:
-                print(f"[ERROR] run_netctlpan_multi_length 分片并发/合并/上传异常: {e}")
+                print(f"[ERROR] run_netmhcpan_multi_length 分片并发/合并/上传异常: {e}")
                 traceback.print_exc()
                 raise
             # 7. 删除所有中间excel和分片fasta和合并excel
@@ -526,7 +535,7 @@ async def run_netmhcpan_multi_length(
                 print(f"[WARN] 删除分片目录失败: {split_dir}, {e}")
                 traceback.print_exc()
  
-            return json.dumps({"type": "link", "url": minio_excel_path, "content": "NetCTLpan多肽长并行处理完成，结果已合并。"}, ensure_ascii=False)
+            return json.dumps({"type": "link", "url": minio_excel_path, "content": "NetMHCPan多肽长并行处理完成，结果已合并。"}, ensure_ascii=False)
     except Exception as e:
         print(f"[ERROR] run_netmhcpan_multi_length 执行异常: {e}")
         traceback.print_exc()

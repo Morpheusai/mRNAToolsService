@@ -3,6 +3,9 @@ import json
 import os
 import uuid
 import traceback
+import datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from minio import Minio
@@ -15,7 +18,7 @@ from src.tools.NetCTLPan.netctlpan_to_excel import save_excel
 from src.utils.log import logger
 from src.utils.parallel_utils import split_fasta, run_commands_async, merge_excels
 from src.utils.minio_utils import download_from_minio_uri, upload_file_to_minio
-from typing import List, Tuple
+from src.utils.utils import deduplicate_fasta_by_sequence
 
 load_dotenv()
 # MinIO 配置:
@@ -223,27 +226,7 @@ async def run_netctlpan_multi_length(
 
     # 新增：如果peptide_duplication_mode==1，对FASTA文件内容去重
     if peptide_duplication_mode == 1:
-        def deduplicate_fasta_by_sequence(fasta_str: str) -> Tuple[str, int, int]:
-            lines = fasta_str.strip().split('\n')
-            seen_seq = set()
-            result = []
-            total_before = 0
-            total_after = 0
-            i = 0
-            while i < len(lines):
-                if lines[i].startswith('>'):
-                    total_before += 1
-                    desc = lines[i]
-                    seq = lines[i+1] if i+1 < len(lines) else ''
-                    if seq not in seen_seq:
-                        seen_seq.add(seq)
-                        result.append(desc)
-                        result.append(seq)
-                        total_after += 1
-                    i += 2
-                else:
-                    i += 1
-            return '\n'.join(result), total_before, total_after
+
         # 读取、去重、写回
         with open(input_fasta, 'r', encoding='utf-8') as f:
             fasta_content = f.read()
@@ -286,7 +269,10 @@ async def run_netctlpan_multi_length(
         merged_excel = Path(output_dir) / f"merged_multi_{uuid.uuid4().hex}_NetCTLpan_results.xlsx"
         merge_excels(excel_files, str(merged_excel))
         # 6. 上传合并后的Excel到MinIO
-        minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET)
+        beijing_time = datetime.now(ZoneInfo("Asia/Shanghai"))
+        time_str = beijing_time.strftime('%Y-%m-%d_%H-%M-%S')
+        tool_output_filename = f"{uuid.uuid4().hex}_NetCTLpan_results_{time_str}.xlsx"
+        minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET, tool_output_filename)
         # 7. 删除所有中间excel和分组fasta和合并excel
         for f in excel_files:
             try:
@@ -337,7 +323,10 @@ async def run_netctlpan_multi_length(
             merged_excel = Path(output_dir) / f"merged_multi_{uuid.uuid4().hex}_NetCTLpan_results.xlsx"
             merge_excels(excel_files, str(merged_excel))
             # 6. 上传合并后的Excel到MinIO
-            minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET)
+            beijing_time = datetime.now(ZoneInfo("Asia/Shanghai"))
+            time_str = beijing_time.strftime('%Y-%m-%d_%H-%M-%S')
+            tool_output_filename = f"{uuid.uuid4().hex}_NetCTLpan_results_{time_str}.xlsx"
+            minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET, tool_output_filename)
         except Exception as e:
             print(f"[ERROR] run_netctlpan_multi_length 分片并发/合并/上传异常: {e}")
             traceback.print_exc()

@@ -5,10 +5,14 @@ import sys
 import shutil
 import uuid
 import tempfile
+
+
 from typing import List, Union
 import pandas as pd
 
 from dotenv import load_dotenv
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from minio import Minio
 from minio.error import S3Error
 from pathlib import Path
@@ -238,7 +242,9 @@ async def run_bigmhc(
             }, ensure_ascii=False)
 
         # 构建输出文件名和临时路径
-        output_filename = f"{random_id}_BigMHC_results.xlsx"
+        beijing_time = datetime.now(ZoneInfo("Asia/Shanghai"))
+        time_str = beijing_time.strftime('%Y-%m-%d_%H-%M-%S')
+        output_filename = f"{random_id}_BigMHC_results_{time_str}.xlsx"
 
         csv_filename= "BigMHC_results.csv"
         #工具输出文件路径

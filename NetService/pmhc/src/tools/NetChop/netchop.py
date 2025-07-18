@@ -4,6 +4,9 @@ import os
 import sys
 import uuid
 import traceback
+import datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from minio import Minio
@@ -17,6 +20,7 @@ from src.tools.NetChop.netchop_to_excel import save_excel
 from src.utils.log import logger
 from src.utils.parallel_utils import split_fasta, run_commands_async, merge_excels
 from src.utils.minio_utils import download_from_minio_uri, upload_file_to_minio
+from src.utils.utils import deduplicate_fasta_by_sequence
 
 load_dotenv()
 # MinIO 配置:
@@ -41,6 +45,7 @@ minio_client = Minio(
     secure=MINIO_SECURE
 )
 
+#获取滑窗肽段文件
 def sliding_window_from_file(input_file: str, window_sizes: List[int], output_file: str) -> None:
     """
     从 FASTA 文件读取序列，进行滑窗切割，并输出到新的 FASTA 文件。
@@ -55,8 +60,8 @@ def sliding_window_from_file(input_file: str, window_sizes: List[int], output_fi
     with open(input_file, 'r') as f:
         fasta_content = f.read()
 
-    # 解析原始 FASTA
-    peptides = {}
+    # 解析原始 FASTA，允许同名头，全部保留
+    peptides = []
     current_id = None
     current_seq = []
 
@@ -64,7 +69,7 @@ def sliding_window_from_file(input_file: str, window_sizes: List[int], output_fi
         line = line.strip()
         if line.startswith('>'):
             if current_id is not None:
-                peptides[current_id] = ''.join(current_seq)
+                peptides.append((current_id, ''.join(current_seq)))
             current_id = line[1:]  # 去掉 '>'
             current_seq = []
         else:
@@ -72,11 +77,11 @@ def sliding_window_from_file(input_file: str, window_sizes: List[int], output_fi
                 current_seq.append(line)
 
     if current_id is not None:  # 添加最后一条序列
-        peptides[current_id] = ''.join(current_seq)
+        peptides.append((current_id, ''.join(current_seq)))
 
     # 生成滑窗子序列并格式化为 FASTA
     output_lines = []
-    for peptide_id, seq in peptides.items():
+    for peptide_id, seq in peptides:
         for window in window_sizes:
             if window > len(seq):
                 continue  # 跳过无效窗口
@@ -90,6 +95,7 @@ def sliding_window_from_file(input_file: str, window_sizes: List[int], output_fi
     # 写入输出文件
     with open(output_file, 'w') as f:
         f.write('\n'.join(output_lines))
+
 
 
 # 新增：单文件处理逻辑（原run_netchop主体，便于并行调用）
@@ -142,7 +148,6 @@ async def run_netchop_single(
     output_content = stdout.decode()
     
     # 保存命令输出为Excel
-    # print(output_content)
     save_excel(output_content, str(output_dir), output_filename)
     input_path.unlink(missing_ok=True)
     return str(output_path)
@@ -163,7 +168,25 @@ async def run_netchop_parallel(
     if isinstance(input_fasta, str) and input_fasta.startswith("minio://"):
         input_fasta = download_from_minio_uri(input_fasta, INPUT_TMP_DIR)
 
+    # 读取、去重、写回
+    with open(input_fasta, 'r', encoding='utf-8') as f:
+        fasta_content = f.read()
+    deduped, total_before, total_after = deduplicate_fasta_by_sequence(fasta_content)
+    print(f"输入文件去重前肽段总数: {total_before}")
+    print(f"输入文件去重后肽段总数: {total_after}")
+    with open(input_fasta, 'w', encoding='utf-8') as f:
+        f.write(deduped)        
+
     sliding_window_from_file(input_fasta, window_sizes, input_fasta)
+
+    # 读取、去重、写回
+    with open(input_fasta, 'r', encoding='utf-8') as f:
+        fasta_content = f.read()
+    deduped, total_before, total_after = deduplicate_fasta_by_sequence(fasta_content)
+    print(f"滑窗得到去重前肽段总数: {total_before}")
+    print(f"滑窗得到去重后肽段总数: {total_after}")
+    with open(input_fasta, 'w', encoding='utf-8') as f:
+        f.write(deduped)
 
     split_dir = Path(output_dir) / f"split_{uuid.uuid4().hex}"
     split_dir.mkdir(parents=True, exist_ok=True)
@@ -178,7 +201,10 @@ async def run_netchop_parallel(
     merged_excel = Path(output_dir) / f"merged_{uuid.uuid4().hex}_NetChop_results.xlsx"
     merge_excels(excel_files, str(merged_excel))
     # 4. 先上传合并后的Excel到MinIO
-    minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET)
+    beijing_time = datetime.now(ZoneInfo("Asia/Shanghai"))
+    time_str = beijing_time.strftime('%Y-%m-%d_%H-%M-%S')
+    tool_output_filename = f"{uuid.uuid4().hex}_NetChop_results_{time_str}.xlsx"
+    minio_excel_path = upload_file_to_minio(str(merged_excel), MINIO_BUCKET, tool_output_filename)
     # 5. 清理中间excel、分片fasta和分片目录
     for f in excel_files:
         try:
