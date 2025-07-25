@@ -40,7 +40,6 @@ TOOL:
     output_tmp_dir: "/mnt/tmp/rnafold/output"     
 
 
-
 MINIO:
   endpoint: "47.237.170.62:18080"
   netchop_bucket: "netchop-results"

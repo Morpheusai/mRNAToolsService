@@ -9,8 +9,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from minio import Minio
-from minio.error import S3Error
 from pathlib import Path
 from typing import List
 
@@ -25,11 +23,7 @@ from src.utils.utils import deduplicate_fasta_by_sequence
 load_dotenv()
 # MinIO 配置:
 MINIO_CONFIG = CONFIG_YAML["MINIO"]
-MINIO_ENDPOINT = MINIO_CONFIG["endpoint"]
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
 MINIO_BUCKET = MINIO_CONFIG["netchop_bucket"]
-MINIO_SECURE = MINIO_CONFIG.get("secure", False)
 
 # netchop 配置 
 NETCHOP_DIR = CONFIG_YAML["TOOL"]["NETCHOP"]["netchop_dir"]
@@ -37,13 +31,7 @@ INPUT_TMP_DIR = CONFIG_YAML["TOOL"]["NETCHOP"]["input_tmp_netchop_dir"]
 DOWNLOADER_PREFIX = CONFIG_YAML["TOOL"]["COMMON"]["output_download_url_prefix"]
 OUTPUT_TMP_DIR = CONFIG_YAML["TOOL"]["NETCHOP"]["output_tmp_netchop_dir"]
 
-# 初始化 MinIO 客户端
-minio_client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=MINIO_SECURE
-)
+
 
 #获取滑窗肽段文件
 def sliding_window_from_file(input_file: str, window_sizes: List[int], output_file: str) -> None:

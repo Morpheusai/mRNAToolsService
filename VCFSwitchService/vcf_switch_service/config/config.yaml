@@ -1,0 +1,23 @@
+LOGGER:
+    log_level: "DEBUG"
+    log_path: "../logs/log.txt"
+
+TOOL:
+  COMMON:
+    output_download_url_prefix: "https://mollyseek.com/downloads/"    
+  VCFSWITCH:
+    input_tmp_dir: "/mnt/tmp/vcfswitch/input"
+    output_tmp_dir: "/mnt/tmp/vcfswitch/output"
+    bcftools_image: "1da412521492"  # Docker image for bcftools
+    vcf2prot_image: "73dd87caa544"  # Docker image for vcf2prot
+    header_file: "/opt/softwares/vcf_peptide_script/hg19_header.txt" #dockers的地址   
+    ref_fasta: "/opt/softwares/vcf_peptide_script/ref/hg19/Homo_sapiens.GRCh37.dna.primary_assembly.fa" #dockers的地址
+    ref_gff3: "/opt/softwares/vcf_peptide_script/ref/hg19/Homo_sapiens.GRCh37.87.gff3" #dockers的地址
+    protein_fasta: "/opt/softwares/vcf_peptide_script/ref/hg19/Homo_sapiens.GRCh37.pep.all.clean.fasta" #dockers的地址
+    process_bcsq_script: "/home/ubuntu/softwares/vcf_peptide_script/process_bcsq_file.py" #主机的地址
+
+
+MINIO:
+  endpoint: "47.237.170.62:18080"
+  molly_bucket: "molly"
+  secure: false
