@@ -31,7 +31,7 @@ async def run_vcfswitch(
     normal_file: str,  # MinIO 文件路径
     tumor_file: str,   # MinIO 文件路径
 ) -> str:
-    random_folder = str(uuid.uuid4())
+    random_folder = str(uuid.uuid4().hex)
     input_tmp_dir_vcf = os.path.join(INPUT_TMP_DIR, random_folder)
     output_tmp_dir = os.path.join(OUTPUT_TMP_DIR, random_folder)
     os.makedirs(input_tmp_dir_vcf, exist_ok=True)
