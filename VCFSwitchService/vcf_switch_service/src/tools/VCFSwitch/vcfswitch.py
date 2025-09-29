@@ -55,22 +55,22 @@ async def run_vcfswitch(
 
         # 2. 运行主流程
         logger.info("开始执行 bcftools/vcf2prot 主流程...")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"grep -v '^##' {normal_vcf} > {output_tmp_dir}/body_normal.vcf\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"cat {header_file} {output_tmp_dir}/body_normal.vcf > {output_tmp_dir}/normal.fixed.vcf\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"grep -v '^##' {tumor_vcf} > {output_tmp_dir}/body_tumor.vcf\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"cat {header_file} {output_tmp_dir}/body_tumor.vcf > {output_tmp_dir}/tumor.fixed.vcf\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools sort {output_tmp_dir}/normal.fixed.vcf -Oz -o {output_tmp_dir}/normal.sorted.vcf.gz\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"tabix -p vcf {output_tmp_dir}/normal.sorted.vcf.gz\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools sort {output_tmp_dir}/tumor.fixed.vcf -Oz -o {output_tmp_dir}/tumor.sorted.vcf.gz\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"tabix -p vcf {output_tmp_dir}/tumor.sorted.vcf.gz\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools isec -C {output_tmp_dir}/tumor.sorted.vcf.gz {output_tmp_dir}/normal.sorted.vcf.gz -Oz -p {output_tmp_dir}/isec_output\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools view {output_tmp_dir}/isec_output/0000.vcf.gz -Ov -o {output_tmp_dir}/tumor_specific.vcf\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools query -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%INFO/ANN\\n' {output_tmp_dir}/tumor_specific.vcf > {output_tmp_dir}/tumor_specific.tsv\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools csq -f {ref_fasta} -g {ref_gff3} -p a {output_tmp_dir}/tumor_specific.vcf -Oz -o {output_tmp_dir}/tumor_specific.bcsq.vcf.gz\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"gunzip -c {output_tmp_dir}/tumor_specific.bcsq.vcf.gz > {output_tmp_dir}/tumor_specific.bcsq.vcf\"")
-        run_cmd(f"sudo docker exec {VCF2PROT_IMAGE} bash -c \"/target/release/vcf2prot -f {output_tmp_dir}/tumor_specific.bcsq.vcf -r {prot_fasta} -v -g st -o {output_tmp_dir}\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools query -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%INFO/AF\\t%INFO/BCSQ\\n' {output_tmp_dir}/tumor_specific.bcsq.vcf.gz > {output_tmp_dir}/bcsq.tsv\"")
-        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"chmod -R 777 {output_tmp_dir}\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"grep -v '^##' '{normal_vcf}' > '{output_tmp_dir}/body_normal.vcf'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"cat '{header_file}' '{output_tmp_dir}/body_normal.vcf' > '{output_tmp_dir}/normal.fixed.vcf'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"grep -v '^##' '{tumor_vcf}' > '{output_tmp_dir}/body_tumor.vcf'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"cat '{header_file}' '{output_tmp_dir}/body_tumor.vcf' > '{output_tmp_dir}/tumor.fixed.vcf'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools sort '{output_tmp_dir}/normal.fixed.vcf' -Oz -o '{output_tmp_dir}/normal.sorted.vcf.gz'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"tabix -p vcf '{output_tmp_dir}/normal.sorted.vcf.gz'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools sort '{output_tmp_dir}/tumor.fixed.vcf' -Oz -o '{output_tmp_dir}/tumor.sorted.vcf.gz'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"tabix -p vcf '{output_tmp_dir}/tumor.sorted.vcf.gz'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools isec -C '{output_tmp_dir}/tumor.sorted.vcf.gz' '{output_tmp_dir}/normal.sorted.vcf.gz' -Oz -p '{output_tmp_dir}/isec_output'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools view '{output_tmp_dir}/isec_output/0000.vcf.gz' -Ov -o '{output_tmp_dir}/tumor_specific.vcf'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools query -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%INFO/ANN\\n' '{output_tmp_dir}/tumor_specific.vcf' > '{output_tmp_dir}/tumor_specific.tsv'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools csq -f '{ref_fasta}' -g '{ref_gff3}' -p a '{output_tmp_dir}/tumor_specific.vcf' -Oz -o '{output_tmp_dir}/tumor_specific.bcsq.vcf.gz'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"gunzip -c '{output_tmp_dir}/tumor_specific.bcsq.vcf.gz' > '{output_tmp_dir}/tumor_specific.bcsq.vcf'\"")
+        run_cmd(f"sudo docker exec {VCF2PROT_IMAGE} bash -c \"/target/release/vcf2prot -f '{output_tmp_dir}/tumor_specific.bcsq.vcf' -r '{prot_fasta}' -v -g st -o '{output_tmp_dir}'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"bcftools query -f '%CHROM\\t%POS\\t%REF\\t%ALT\\t%INFO/AF\\t%INFO/BCSQ\\n' '{output_tmp_dir}/tumor_specific.bcsq.vcf.gz' > '{output_tmp_dir}/bcsq.tsv'\"")
+        run_cmd(f"sudo docker exec {BCFTOOLS_IMAGE} bash -c \"chmod -R 777 '{output_tmp_dir}'\"")
 
         # 查找fasta
         fasta_mut = ""
@@ -83,7 +83,7 @@ async def run_vcfswitch(
             raise Exception("未找到突变蛋白序列fasta文件")
         unique_output = os.path.join(output_tmp_dir, "tumor_pep_info_unique.xlsx")
         logger.info(f"运行 process_bcsq_file.py 生成excel: {unique_output}")
-        run_cmd(f"python3 {process_bcsq_script} -i {output_tmp_dir}/bcsq.tsv -f {fasta_mut} -u {unique_output} -c 11")
+        run_cmd(f"python3 '{process_bcsq_script}' -i '{output_tmp_dir}/bcsq.tsv' -f '{fasta_mut}' -u '{unique_output}' -c 11")
 
         # 上传excel到minio
         logger.info(f"上传excel到minio: {unique_output}")
