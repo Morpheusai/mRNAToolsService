@@ -17,7 +17,7 @@ TOOL:
     output_tmp_pmtnet_dir: "/opt/tmp/pmtnet/output"         
 
 MINIO:
-  endpoint: "47.237.170.62:18080"
+  endpoint: "8.219.233.114:18080"
   pmtnet_bucket: "pmtnet-results"
   piste_bucket: "piste-results"
   secure: false

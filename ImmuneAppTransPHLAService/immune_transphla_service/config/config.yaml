@@ -27,7 +27,7 @@ TOOL:
 
 
 MINIO:
-  endpoint: "47.237.170.62:18080"
+  endpoint: "8.219.233.114:18080"
   molly_bucket: "molly"
   immuneapp_bucket: "immuneapp-results"
   immuneapp_neo_bucket: "immuneapp-neo-results"
